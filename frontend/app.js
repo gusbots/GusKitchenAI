@@ -113,9 +113,65 @@ async function loadSprouts() {
       };
 
         div.appendChild(button);
-    } else {
-      phase.innerText = `Phase: ${sprout.phase}`;
-      div.appendChild(phase);
+    } else if (sprout.phase === "growing") {
+
+        const start = new Date(sprout.start_time);
+        const now = new Date();
+
+        const elapsedMs = now - start;
+        const elapsedDays = elapsedMs / (1000 * 60 * 60 * 24);
+
+        const totalDays = sprout.grow_days || 0;
+
+        const currentDay = Math.floor(elapsedDays) + 1;
+        if (currentDay >= totalDays) {
+            phase.innerText = `Ready to harvest (Day ${currentDay} / ${totalDays})`;
+        } else {
+            phase.innerText = `Growing (Day ${currentDay} / ${totalDays})`;
+        }
+        div.appendChild(phase);
+
+        const today = new Date().toISOString().split("T")[0];
+        const todayLog = sprout.wash_log.find(log => log.date === today);
+
+        const washesDone = todayLog ? todayLog.count : 0;
+        const required = sprout.washes_per_day || 0;
+
+        const washInfo = document.createElement("p");
+        washInfo.innerText = `Washes today: ${washesDone} / ${required}`;
+
+        div.appendChild(washInfo);
+
+        /* Wash button */
+        const washButton = document.createElement("button");
+        washButton.innerText = "Mark Wash Done";
+
+        washButton.onclick = async () => {
+        await fetch(`/sprouts/${sprout.id}/wash`, {
+            method: "POST"
+        });
+
+        loadSprouts();
+        };
+
+        div.appendChild(washButton);
+
+        /* Harvest button */
+        const harvestButton = document.createElement("button");
+        harvestButton.innerText = "Harvest";
+
+        harvestButton.onclick = async () => {
+        await fetch(`/sprouts/${sprout.id}/done-growing`, {
+            method: "POST"
+        });
+
+        loadSprouts();
+        };
+
+        div.appendChild(harvestButton);
+    } else if (sprout.phase === "done") {
+        phase.innerText = "Harvested ✔";
+        div.appendChild(phase);
     }
 
     const rules = document.createElement("p");

@@ -169,3 +169,49 @@ def done_soaking(sprout_id: int):
             return {"status": "updated", "sprout": sprout}
 
     return {"status": "not_found"}
+
+
+@app.post("/sprouts/{sprout_id}/wash")
+def add_wash(sprout_id: int):
+    """
+    Record a wash for today.
+    """
+    sprouts = load_sprouts()
+    today = datetime.utcnow().date().isoformat()
+
+    for sprout in sprouts:
+        if sprout["id"] == sprout_id:
+            log = sprout.get("wash_log", [])
+
+            for entry in log:
+                if entry["date"] == today:
+                    entry["count"] += 1
+                    break
+            else:
+                log.append({
+                    "date": today,
+                    "count": 1
+                })
+
+            sprout["wash_log"] = log
+            save_sprouts_file(sprouts)
+
+            return {"status": "updated", "sprout": sprout}
+
+    return {"status": "not_found"}
+
+
+@app.post("/sprouts/{sprout_id}/done-growing")
+def done_growing(sprout_id: int):
+    """
+    Mark a sprout batch as harvested.
+    """
+    sprouts = load_sprouts()
+
+    for sprout in sprouts:
+        if sprout["id"] == sprout_id:
+            sprout["phase"] = "done"
+            save_sprouts_file(sprouts)
+            return {"status": "updated", "sprout": sprout}
+
+    return {"status": "not_found"}
