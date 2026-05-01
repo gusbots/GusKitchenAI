@@ -300,7 +300,6 @@ function showView(viewName) {
 
   if (viewName === "sprouts") {
     document.getElementById("sproutsView").style.display = "block";
-    loadSprouts();
   }
 }
 
@@ -333,8 +332,14 @@ function init() {
   loadHealth();
   loadCalendar();
   loadSettings();
+  loadSprouts();
+
   updateClock();
   setInterval(updateClock, 1000);
+
+  setInterval(loadHealth, 30000);
+  setInterval(loadCalendar, 60000);
+  setInterval(loadSprouts, 60000);
 }
 
 window.onload = init;

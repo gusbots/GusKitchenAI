@@ -34,5 +34,24 @@
         "count": 5
       }
     ]
+  },
+  {
+    "id": 5,
+    "seed_id": "broccoli",
+    "start_time": "2026-04-30T20:52:19.149048+00:00",
+    "phase": "growing",
+    "wash_log": [
+      {
+        "date": "2026-05-01",
+        "count": 1
+      }
+    ]
+  },
+  {
+    "id": 6,
+    "seed_id": "broccoli",
+    "start_time": "2026-05-01T20:55:07.598683+00:00",
+    "phase": "soaking",
+    "wash_log": []
   }
 ]

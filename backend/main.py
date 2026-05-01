@@ -7,9 +7,11 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from backend.sprouts import load_seeds, load_sprouts, save_sprouts_file
+import backend.sprouts as sprouts
+from backend.sprouts_router import router as sprouts_router
 
 app = FastAPI()
+app.include_router(sprouts_router)
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
 # -------------------------
@@ -93,125 +95,3 @@ def get_calendar():
         {"time": "12:00 PM", "event": "Lunch"},
         {"time": "6:00 PM", "event": "Cook Dinner"}
     ]
-
-
-@app.get("/seeds")
-def get_seeds():
-    """
-    Retrieve available seed types and sprouting rules.
-    """
-    return load_seeds()
-
-
-@app.get("/sprouts")
-def get_sprouts():
-    """
-    Retrieve active sprout batches with seed rule details.
-    """
-    sprouts = load_sprouts()
-    seeds = load_seeds()
-
-    enriched_sprouts = []
-
-    for sprout in sprouts:
-        seed = seeds.get(sprout["seed_id"], {})
-
-        enriched_sprout = {
-            **sprout,
-            "seed_name": seed.get("name", sprout["seed_id"]),
-            "soak_hours": seed.get("soak_hours"),
-            "grow_days": seed.get("grow_days"),
-            "washes_per_day": seed.get("washes_per_day")
-        }
-
-        enriched_sprouts.append(enriched_sprout)
-
-    return enriched_sprouts
-
-
-@app.post("/sprouts")
-def create_sprout(data: dict = Body(...)):
-    """
-    Create a new sprout batch.
-    """
-
-    sprouts = load_sprouts()
-
-    if sprouts:
-        new_id = max(s["id"] for s in sprouts) + 1
-    else:
-        new_id = 1
-
-    new_sprout = {
-        "id": new_id,
-        "seed_id": data["seed_id"],
-        "start_time": datetime.now(timezone.utc).isoformat(),
-        "phase": "soaking",
-        "wash_log": []
-    }
-
-    sprouts.append(new_sprout)
-    save_sprouts_file(sprouts)
-
-    return {"status": "created", "sprout": new_sprout}
-
-@app.post("/sprouts/{sprout_id}/done-soaking")
-def done_soaking(sprout_id: int):
-    """
-    Mark a sprout batch as done soaking and move it to growing phase.
-    """
-    sprouts = load_sprouts()
-
-    for sprout in sprouts:
-        if sprout["id"] == sprout_id:
-            sprout["phase"] = "growing"
-            save_sprouts_file(sprouts)
-            return {"status": "updated", "sprout": sprout}
-
-    return {"status": "not_found"}
-
-
-@app.post("/sprouts/{sprout_id}/wash")
-def add_wash(sprout_id: int):
-    """
-    Record a wash for today.
-    """
-    sprouts = load_sprouts()
-    today = datetime.utcnow().date().isoformat()
-
-    for sprout in sprouts:
-        if sprout["id"] == sprout_id:
-            log = sprout.get("wash_log", [])
-
-            for entry in log:
-                if entry["date"] == today:
-                    entry["count"] += 1
-                    break
-            else:
-                log.append({
-                    "date": today,
-                    "count": 1
-                })
-
-            sprout["wash_log"] = log
-            save_sprouts_file(sprouts)
-
-            return {"status": "updated", "sprout": sprout}
-
-    return {"status": "not_found"}
-
-
-@app.post("/sprouts/{sprout_id}/done-growing")
-def done_growing(sprout_id: int):
-    """
-    Mark a sprout batch as harvested.
-    """
-    sprouts = load_sprouts()
-
-    for sprout in sprouts:
-        if sprout["id"] == sprout_id:
-            sprout["phase"] = "done"
-            save_sprouts_file(sprouts)
-            return {"status": "updated", "sprout": sprout}
-
-    return {"status": "not_found"}
