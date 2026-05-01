@@ -93,18 +93,29 @@
 
     <!-- Main Content -->
     <div style="flex: 1; padding: 20px; overflow-y: auto;">
-      <h1 id="clock"></h1>
-      <h2 id="welcome"></h2>
-      <p id="output">Loading...</p>
+      <div id="dashboardView">
+        <h1 id="clock"></h1>
+        <h2 id="welcome"></h2>
+        <p id="output">Loading...</p>
 
-      <div class="section">
-        <h2>📅 Calendar</h2>
-        <div id="calendar"></div>
+        <div class="section">
+          <h2>📅 Calendar</h2>
+          <div id="calendar"></div>
+        </div>
+
+        <div class="section">
+          <h2>🌱 Sprouts</h2>
+          <p>Coming soon...</p>
+        </div>
       </div>
 
-      <div class="section">
-        <h2>🌱 Sprouts</h2>
-        <p>Coming soon...</p>
+      <!-- Sprouts page -->
+      <div id="sproutsView" style="display: none;">
+        <h1>🌱 Sprout Tracker</h1>
+
+        <button onclick="openAddSprout()">➕ Add Sprout</button>
+
+        <div id="sproutList"></div>
       </div>
     </div>
 
@@ -112,12 +123,13 @@
     <div class="sidebar">
       <!-- Top -->
       <div>
-        <button>🏠</button>
+        <button onclick="playClick(); showView('dashboard')">🏠</button>
+        <button onclick="playClick(); showView('sprouts')">🌱</button>
       </div>
 
       <!-- Bottom -->
       <div>
-        <button id="settingsBtn" onclick="openSettings()">⚙️</button>
+        <button id="settingsBtn" onclick="playClick(); openSettings()">⚙️</button>
       </div>
     </div>
 
@@ -163,105 +175,36 @@
     </div>
   </div>
 
-  <script>
-    async function loadHealth() {
-      const res = await fetch("/health");
-      const data = await res.json();
+  <div id="addSproutModal" onclick="handleAddSproutClick(event)" style="
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    justify-content: center;
+    align-items: center;
+  ">
+    <div class="modal-box" onclick="event.stopPropagation()" style="
+      padding: 20px;
+      border-radius: 10px;
+      width: 300px;
+    ">
+      <h2>New Sprout</h2>
 
-      document.getElementById("output").innerText =
-        data.status === "ok" ? "✅ Backend is running" : "❌ Backend error";
-    }
+      <label>
+        Seed:
+        <select id="seedSelect"></select>
+      </label>
 
-    async function loadCalendar() {
-      const res = await fetch("/calendar");
-      const data = await res.json();
+      <br><br>
 
-      const list = document.getElementById("calendar");
-      list.innerHTML = "";
+      <button onclick="createSprout()">Create</button>
+      <button onclick="closeAddSprout()">Cancel</button>
+    </div>
+  </div>
 
-      data.forEach(item => {
-        const div = document.createElement("div");
-        div.className = "card";
-
-        const time = document.createElement("strong");
-        time.innerText = item.time;
-
-        const event = document.createElement("p");
-        event.innerText = item.event;
-        event.style.margin = "5px 0 0 0";
-
-        div.appendChild(time);
-        div.appendChild(event);
-        list.appendChild(div);
-      });
-    }
-
-    function handleModalClick(event) {
-      closeSettings();
-    }
-
-    function updateClock() {
-      const now = new Date();
-      const time = now.toLocaleTimeString();
-      document.getElementById("clock").innerText = time;
-    }
-
-    function openSettings() {
-      loadSettings();
-      document.getElementById("settingsModal").style.display = "flex";
-    }
-
-    function closeSettings() {
-      document.getElementById("settingsModal").style.display = "none";
-    }
-
-    async function saveSettings() {
-      const username = document.getElementById("usernameInput").value;
-      const theme = document.getElementById("themeInput").value;
-
-      await fetch("/settings", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          username: username,
-          theme: theme
-        })
-      });
-
-      /* Update UI immediately after saving settings */
-      document.body.className = theme;
-
-      /* Close settings modal after saving */
-      closeSettings();
-    }
-
-    async function loadSettings() {
-      const res = await fetch("/settings");
-      const data = await res.json();
-
-      const username = data.username || "";
-      const theme = data.theme || "light";
-
-      document.getElementById("usernameInput").value = username;
-      document.getElementById("themeInput").value = theme;
-
-      document.getElementById("welcome").innerText =
-        username ? `Welcome, ${username}` : "";
-      
-      document.body.className = theme;
-    }
-
-    function init() {
-      loadHealth();
-      loadCalendar();
-      loadSettings();
-      updateClock();
-      setInterval(updateClock, 1000);
-    }
-
-    window.onload = init;
-  </script>
+  <script src="/static/app.js"></script>
 </body>
 </html>

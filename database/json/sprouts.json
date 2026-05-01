@@ -1,0 +1,23 @@
+[
+  {
+    "id": 1,
+    "seed_id": "broccoli",
+    "start_time": "2026-05-01T16:49:03.536594+00:00",
+    "phase": "growing",
+    "wash_log": []
+  },
+  {
+    "id": 3,
+    "seed_id": "broccoli",
+    "start_time": "2026-05-01T19:20:29.974031+00:00",
+    "phase": "growing",
+    "wash_log": []
+  },
+  {
+    "id": 4,
+    "seed_id": "broccoli",
+    "start_time": "2026-05-01T19:23:18.522936+00:00",
+    "phase": "growing",
+    "wash_log": []
+  }
+]

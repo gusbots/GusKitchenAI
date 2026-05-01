@@ -1,0 +1,8 @@
+{
+  "broccoli": {
+    "name": "Broccoli",
+    "soak_hours": 2,
+    "grow_days": 5,
+    "washes_per_day": 2
+  }
+}
