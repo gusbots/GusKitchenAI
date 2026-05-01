@@ -1,7 +1,21 @@
+from fastapi import Body
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 
+settings_store = {
+    "username": ""
+}
+
 app = FastAPI()
+
+@app.get("/settings")
+def get_settings():
+    return settings_store
+
+@app.post("/settings")
+def save_settings(data: dict = Body(...)):
+    settings_store.update(data)
+    return {"status": "saved"}
 
 @app.get("/health")
 def health():
@@ -9,7 +23,7 @@ def health():
 
 @app.get("/", response_class=HTMLResponse)
 def root():
-    with open("index.html") as f:
+    with open("frontend/index.html") as f:
         return f.read()
 
 @app.get("/calendar")
