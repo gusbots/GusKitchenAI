@@ -91,7 +91,7 @@ def save_settings(data: dict = Body(...)):
 @app.get("/calendar")
 def get_calendar():
     return [
-        {"time": "9:00 AM", "event": "Team Meeting"},
+        {"time": "9:00 AM", "event": "Team Meeting!"},
         {"time": "12:00 PM", "event": "Lunch"},
         {"time": "6:00 PM", "event": "Cook Dinner"}
     ]

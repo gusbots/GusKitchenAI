@@ -11,6 +11,9 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /workspaces/GusKitchenAI
 
+COPY requirements.txt .
+RUN pip3 install --break-system-packages -r requirements.txt
+
 RUN git config --system --add safe.directory /workspaces/GusKitchenAI && \
     echo "ubuntu ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
