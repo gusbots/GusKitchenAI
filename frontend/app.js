@@ -1,10 +1,45 @@
+
+/* =========================
+   API Helpers
+   ========================= */
+
+async function apiGet(path) {
+  const res = await fetch(path);
+
+  if (!res.ok) {
+    throw new Error(`GET ${path} failed`);
+  }
+
+  return res.json();
+}
+
+async function apiPost(path, body = null) {
+  const options = {
+    method: "POST"
+  };
+
+  if (body) {
+    options.headers = {
+      "Content-Type": "application/json"
+    };
+    options.body = JSON.stringify(body);
+  }
+
+  const res = await fetch(path, options);
+
+  if (!res.ok) {
+    throw new Error(`POST ${path} failed`);
+  }
+
+  return res.json();
+}
+
 /* =========================
    Health & Backend Status
    ========================= */
 
 async function loadHealth() {
-  const res = await fetch("/health");
-  const data = await res.json();
+  const data = await apiGet("/health");
 
   document.getElementById("output").innerText =
     data.status === "ok" ? "✅ Backend is running" : "❌ Backend error";
@@ -32,8 +67,7 @@ function handleAddSproutClick(event) {
    ========================= */
 
 async function loadSeeds() {
-  const res = await fetch("/seeds");
-  const seeds = await res.json();
+  const seeds = await apiGet("/seeds");
 
   const select = document.getElementById("seedSelect");
   select.innerHTML = "";
@@ -51,135 +85,129 @@ async function loadSeeds() {
    Sprouts API
    ========================= */
 
+function addParagraph(parent, text) {
+  const p = document.createElement("p");
+  p.innerText = text;
+  parent.appendChild(p);
+
+  return p;
+}
+
 async function createSprout() {
   const seedId = document.getElementById("seedSelect").value;
 
-  await fetch("/sprouts", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      seed_id: seedId
-    })
-  });
+  await apiPost("/sprouts", { seed_id: seedId });
 
   closeAddSprout();
   loadSprouts();
 }
 
-async function loadSprouts() {
-  const res = await fetch("/sprouts");
-  const sprouts = await res.json();
+async function markDoneSoaking(sproutId) {
+  await apiPost(`/sprouts/${sproutId}/done-soaking`);
+  loadSprouts();
+}
 
+async function markWashDone(sproutId) {
+  await apiPost(`/sprouts/${sproutId}/wash`);
+  loadSprouts();
+}
+
+async function markDoneGrowing(sproutId) {
+  await apiPost(`/sprouts/${sproutId}/done-growing`);
+  loadSprouts();
+}
+
+function createSproutCard(sprout) {
+  const div = document.createElement("div");
+  div.className = "card";
+
+  const title = document.createElement("strong");
+  title.innerText = sprout.seed_name;
+  div.appendChild(title);
+
+  return div;
+}
+
+function renderSoakingSprout(div, sprout) {
+  const start = new Date(sprout.start_time);
+  const now = new Date();
+
+  const elapsedMs = now - start;
+  const elapsedHours = elapsedMs / (1000 * 60 * 60);
+  const required = sprout.soak_hours || 0;
+
+  if (elapsedHours >= required) {
+    addParagraph(div, `Soaking complete (${required}h)`);
+  } else {
+    addParagraph(div, `Soaking (${elapsedHours.toFixed(1)}h / ${required}h)`);
+  }
+
+  const button = document.createElement("button");
+  button.innerText = "Done Soaking";
+  button.onclick = () => markDoneSoaking(sprout.id);
+
+  div.appendChild(button);
+}
+
+function renderGrowingSprout(div, sprout) {
+  const currentDay = sprout.current_day;
+  const totalDays = sprout.grow_days || 0;
+
+  if (sprout.is_ready_to_harvest) {
+    addParagraph(div, `Ready to harvest (Day ${currentDay} / ${totalDays})`);
+  } else {
+    addParagraph(div, `Growing (Day ${currentDay} / ${totalDays})`);
+  }
+
+  addParagraph(
+    div,
+    `Washes today: ${sprout.washes_done_today} / ${sprout.washes_per_day}`
+  );
+
+  const washButton = document.createElement("button");
+  washButton.innerText = "Mark Wash Done";
+  washButton.onclick = () => markWashDone(sprout.id);
+
+  div.appendChild(washButton);
+
+  const harvestButton = document.createElement("button");
+  harvestButton.innerText = "Harvest";
+  harvestButton.onclick = () => markDoneGrowing(sprout.id);
+
+  div.appendChild(harvestButton);
+}
+
+function renderDoneSprout(div, sprout) {
+  addParagraph(div, "Harvested ✔");
+}
+
+function renderSprouts(sprouts) {
   const container = document.getElementById("sproutList");
   container.innerHTML = "";
 
   sprouts.forEach(sprout => {
-    const div = document.createElement("div");
-    div.className = "card";
-
-    const title = document.createElement("strong");
-    title.innerText = sprout.seed_name;
-    div.appendChild(title);
-
-    const phase = document.createElement("p");
+    const div = createSproutCard(sprout);
 
     if (sprout.phase === "soaking") {
-      const start = new Date(sprout.start_time);
-      const now = new Date();
-
-      const elapsedMs = now - start;
-      const elapsedHours = elapsedMs / (1000 * 60 * 60);
-      const required = sprout.soak_hours || 0;
-
-      if (elapsedHours >= required) {
-        phase.innerText = `Soaking complete (${required}h)`;
-      } else {
-        phase.innerText = `Soaking (${elapsedHours.toFixed(1)}h / ${required}h)`;
-      }
-
-      div.appendChild(phase);
-
-      const button = document.createElement("button");
-      button.innerText = "Done Soaking";
-
-      button.onclick = async () => {
-        await fetch(`/sprouts/${sprout.id}/done-soaking`, {
-          method: "POST"
-        });
-
-        loadSprouts();
-      };
-
-        div.appendChild(button);
+      renderSoakingSprout(div, sprout);
     } else if (sprout.phase === "growing") {
-
-        const start = new Date(sprout.start_time);
-        const now = new Date();
-
-        const elapsedMs = now - start;
-        const elapsedDays = elapsedMs / (1000 * 60 * 60 * 24);
-
-        const totalDays = sprout.grow_days || 0;
-
-        const currentDay = Math.floor(elapsedDays) + 1;
-        if (currentDay >= totalDays) {
-            phase.innerText = `Ready to harvest (Day ${currentDay} / ${totalDays})`;
-        } else {
-            phase.innerText = `Growing (Day ${currentDay} / ${totalDays})`;
-        }
-        div.appendChild(phase);
-
-        const today = new Date().toISOString().split("T")[0];
-        const todayLog = sprout.wash_log.find(log => log.date === today);
-
-        const washesDone = todayLog ? todayLog.count : 0;
-        const required = sprout.washes_per_day || 0;
-
-        const washInfo = document.createElement("p");
-        washInfo.innerText = `Washes today: ${washesDone} / ${required}`;
-
-        div.appendChild(washInfo);
-
-        /* Wash button */
-        const washButton = document.createElement("button");
-        washButton.innerText = "Mark Wash Done";
-
-        washButton.onclick = async () => {
-        await fetch(`/sprouts/${sprout.id}/wash`, {
-            method: "POST"
-        });
-
-        loadSprouts();
-        };
-
-        div.appendChild(washButton);
-
-        /* Harvest button */
-        const harvestButton = document.createElement("button");
-        harvestButton.innerText = "Harvest";
-
-        harvestButton.onclick = async () => {
-        await fetch(`/sprouts/${sprout.id}/done-growing`, {
-            method: "POST"
-        });
-
-        loadSprouts();
-        };
-
-        div.appendChild(harvestButton);
+      renderGrowingSprout(div, sprout);
     } else if (sprout.phase === "done") {
-        phase.innerText = "Harvested ✔";
-        div.appendChild(phase);
+      renderDoneSprout(div, sprout);
     }
 
-    const rules = document.createElement("p");
-    rules.innerText = `Soak: ${sprout.soak_hours}h | Grow: ${sprout.grow_days} days | Washes: ${sprout.washes_per_day}/day`;
+    addParagraph(
+      div,
+      `Soak: ${sprout.soak_hours}h | Grow: ${sprout.grow_days} days | Washes: ${sprout.washes_per_day}/day`
+    );
 
-    div.appendChild(rules);
     container.appendChild(div);
   });
+}
+
+async function loadSprouts() {
+  const sprouts = await apiGet("/sprouts");
+  renderSprouts(sprouts);
 }
 
 
@@ -188,8 +216,7 @@ async function loadSprouts() {
    ========================= */
 
 async function loadCalendar() {
-  const res = await fetch("/calendar");
-  const data = await res.json();
+  const data = await apiGet("/calendar");
 
   const list = document.getElementById("calendar");
   list.innerHTML = "";
@@ -249,16 +276,7 @@ async function saveSettings() {
   const username = document.getElementById("usernameInput").value;
   const theme = document.getElementById("themeInput").value;
 
-  await fetch("/settings", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      username: username,
-      theme: theme
-    })
-  });
+  await apiPost("/settings", { username, theme });
 
   /* Apply theme immediately */
   document.body.className = theme;
@@ -268,8 +286,7 @@ async function saveSettings() {
 }
 
 async function loadSettings() {
-  const res = await fetch("/settings");
-  const data = await res.json();
+  const data = await apiGet("/settings");
 
   const username = data.username || "";
   const theme = data.theme || "light";
