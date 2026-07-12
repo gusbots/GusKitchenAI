@@ -1,0 +1,21 @@
+{
+  "action": "install",
+  "started_at": "2026-07-12T18:07:57Z",
+  "dry_run": true,
+  "verbose": true,
+  "auto_yes": false,
+  "step_by_step": true,
+  "manifest_path": "/home/gustavo/projects/sandbox-gusbots/GusKitchenAI/install/packages.json",
+  "manifest_sha256": "41462398f5f20ba882537e13f1c1065eeb95f4bf53b0b6dc70637bdcae4ffce4",
+  "platform": {
+    "kind": "linux-pc",
+    "architecture": "x86_64",
+    "os_id": "ubuntu",
+    "os_name": "Ubuntu",
+    "os_pretty_name": "Ubuntu 20.04.6 LTS",
+    "os_like": "debian",
+    "pi_model_raw": "",
+    "pi_model_class": "none",
+    "mem_total_kb": 32460048
+  }
+}

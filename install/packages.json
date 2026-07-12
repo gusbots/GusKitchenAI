@@ -1,0 +1,25 @@
+{
+  "manifest_version": 1,
+  "metadata": {
+    "name": "GusKitchenAI package manifest",
+    "description": "Package and version source of truth for install/update scripts"
+  },
+  "packages": {
+    "apt": [
+      {
+        "name": "chromium",
+        "version": "149.0.7827.114",
+        "enabled": true,
+        "description": "Chromium browser"
+      }
+    ],
+    "pip": [
+      {
+        "name": "example-python-package",
+        "version": "1.0.0",
+        "enabled": false,
+        "description": "Example pip package entry"
+      }
+    ]
+  }
+}
