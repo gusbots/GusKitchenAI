@@ -24,21 +24,71 @@ PI_MODEL_RAW=""
 PI_MODEL_CLASS="none"
 MEM_TOTAL_KB="0"
 
+COLOR_RESET=""
+COLOR_INFO=""
+COLOR_WARN=""
+COLOR_ERROR=""
+COLOR_DEBUG=""
+COLOR_STEP=""
+COLOR_EMPHASIS=""
+
+SUMMARY_SATISFIED="0"
+SUMMARY_INSTALLS="0"
+SUMMARY_UPDATES="0"
+SUMMARY_SKIPPED="0"
+
+init_output_style() {
+  if [[ -n "${NO_COLOR:-}" ]] || [[ "${TERM:-}" == "dumb" ]]; then
+    return 0
+  fi
+
+  if ! [[ -t 1 || -t 2 ]]; then
+    return 0
+  fi
+
+  if command -v tput >/dev/null 2>&1; then
+    local colors
+    colors="$(tput colors 2>/dev/null || printf '0')"
+    if [[ "$colors" =~ ^[0-9]+$ ]] && [[ "$colors" -ge 8 ]]; then
+      COLOR_RESET="$(tput sgr0)"
+      COLOR_INFO="$(tput setaf 2)"
+      COLOR_WARN="$(tput setaf 3)"
+      COLOR_ERROR="$(tput setaf 1)"
+      COLOR_DEBUG="$(tput setaf 6)"
+      COLOR_STEP="$(tput bold)$(tput setaf 4)"
+      COLOR_EMPHASIS="$(tput bold)"
+    fi
+  fi
+}
+
+log_with_level() {
+  local stream="$1"
+  local color="$2"
+  local level="$3"
+  shift 3
+
+  if [[ "$stream" == "stderr" ]]; then
+    printf '%s[%s]%s %s\n' "$color" "$level" "$COLOR_RESET" "$*" >&2
+  else
+    printf '%s[%s]%s %s\n' "$color" "$level" "$COLOR_RESET" "$*"
+  fi
+}
+
 log_info() {
-  printf '[INFO ] %s\n' "$*"
+  log_with_level stdout "$COLOR_INFO" "INFO " "$*"
 }
 
 log_warn() {
-  printf '[WARN ] %s\n' "$*" >&2
+  log_with_level stderr "$COLOR_WARN" "WARN " "$*"
 }
 
 log_error() {
-  printf '[ERROR] %s\n' "$*" >&2
+  log_with_level stderr "$COLOR_ERROR" "ERROR" "$*"
 }
 
 log_verbose() {
   if [[ "$VERBOSE" == "true" ]]; then
-    printf '[DEBUG] %s\n' "$*"
+    log_with_level stdout "$COLOR_DEBUG" "DEBUG" "$*"
   fi
 }
 
@@ -143,6 +193,8 @@ init_runtime() {
   ACTION="$1"
   STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
+  init_output_style
+
   ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
   INSTALL_DIR="$ROOT_DIR/install"
   STATE_DIR="$INSTALL_DIR/state"
@@ -168,7 +220,7 @@ init_runtime() {
 
 step_pause_if_needed() {
   if [[ "$STEP_BY_STEP" == "true" ]]; then
-    printf 'Press Enter to continue this step...'
+    printf '%sPress Enter to continue to the next step, or Ctrl+C to cancel.%s ' "$COLOR_EMPHASIS" "$COLOR_RESET"
     read -r _
   fi
 }
@@ -178,10 +230,11 @@ run_step() {
   local step_desc="$2"
   local step_fn="$3"
 
-  printf '\n=== [%s] %s ===\n' "$step_id" "$step_desc"
+  printf '\n%sStep:%s %s\n' "$COLOR_STEP" "$COLOR_RESET" "$step_desc"
+  log_verbose "Step id: $step_id"
   log_verbose "Running step function: $step_fn"
-  step_pause_if_needed
   "$step_fn"
+  step_pause_if_needed
 }
 
 ask_yes_no() {
@@ -189,7 +242,7 @@ ask_yes_no() {
   local default_answer="${2:-no}"
 
   if [[ "$AUTO_YES" == "true" ]]; then
-    log_info "$question [auto-yes]"
+    log_info "Auto-yes enabled: $question"
     return 0
   fi
 
@@ -217,10 +270,34 @@ ask_yes_no() {
         return 1
         ;;
       *)
-        log_warn "Please answer yes or no."
+        log_warn "Please answer y or n."
         ;;
     esac
   done
+}
+
+reset_summary_counters() {
+  SUMMARY_SATISFIED="0"
+  SUMMARY_INSTALLS="0"
+  SUMMARY_UPDATES="0"
+  SUMMARY_SKIPPED="0"
+}
+
+increment_summary_counter() {
+  local counter_name="$1"
+  printf -v "$counter_name" '%s' "$(( ${!counter_name} + 1 ))"
+}
+
+print_action_summary() {
+  local label="$1"
+
+  log_info "$label complete: ${SUMMARY_SATISFIED} already satisfied, ${SUMMARY_UPDATES} scheduled for update, ${SUMMARY_INSTALLS} scheduled for install, ${SUMMARY_SKIPPED} skipped."
+  if [[ "$DRY_RUN" == "true" ]]; then
+    log_info "Dry run only. No changes were made."
+  fi
+  if [[ "$VERBOSE" == "true" ]]; then
+    log_verbose "Mode summary: dry_run=$DRY_RUN verbose=$VERBOSE step_by_step=$STEP_BY_STEP auto_yes=$AUTO_YES"
+  fi
 }
 
 load_os_release() {
@@ -302,8 +379,8 @@ check_low_memory_warning() {
 
   # 1 GB systems usually report around 900000-1100000 KB.
   if [[ "$MEM_TOTAL_KB" -le 1200000 ]]; then
-    log_warn "This machine has about 1 GB RAM. The system may be laggy with only 1 GB."
-    if ! ask_yes_no "Do you want to continue anyway?" "no"; then
+    log_warn "Detected about 1 GB of RAM. The system may feel slow or laggy on this machine."
+    if ! ask_yes_no "Continue with installation on a low-memory system?" "no"; then
       die "Installation cancelled due to low-memory warning."
     fi
   fi
@@ -342,17 +419,18 @@ preflight_detect_and_validate() {
 
   detect_memory_kb
 
-  log_info "Platform: $PLATFORM_KIND"
-  log_info "OS: $OS_PRETTY_NAME"
+  log_info "Environment detected:"
+  log_info "  Platform: $PLATFORM_KIND"
+  log_info "  OS: $OS_PRETTY_NAME"
   log_verbose "OS id: $OS_ID"
   log_verbose "OS like: $OS_LIKE"
-  log_info "Architecture: $ARCH"
+  log_info "  Architecture: $ARCH"
 
   if [[ "$PLATFORM_KIND" == "raspberry-pi" ]]; then
-    log_info "Raspberry Pi model: $PI_MODEL_RAW ($PI_MODEL_CLASS)"
+    log_info "  Raspberry Pi model: $PI_MODEL_RAW ($PI_MODEL_CLASS)"
   fi
 
-  log_info "Total RAM (GB): $(memory_in_gb_text)"
+  log_info "  RAM: $(memory_in_gb_text) GB"
 
   check_low_memory_warning
 }
@@ -406,5 +484,6 @@ path.parent.mkdir(parents=True, exist_ok=True)
 path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
 PY
 
-  log_info "Wrote runtime state: $STATE_FILE"
+  log_info "Runtime state saved."
+  log_verbose "Runtime state path: $STATE_FILE"
 }

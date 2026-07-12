@@ -14,13 +14,20 @@ usage() {
   cat <<'EOF'
 Usage: ./update.sh [options]
 
+Review installed packages, compare them with the manifest, and prepare updates.
+
 Options:
-  --help             Show this help message
-  --dry-run          Show what would happen without changing the system
-  --verbose          Print additional context for each step
-  --yes              Non-interactive mode (auto-confirm prompts)
-  --step-by-step     Pause before each step and wait for key press
-  --manifest <path>  Use a custom manifest path (default: install/packages.json)
+  --help             Show help and exit
+  --dry-run          Preview changes without modifying the system
+  --verbose          Show additional diagnostic output
+  --yes              Run non-interactively and accept prompts
+  --step-by-step     Pause before each step
+  --manifest <path>  Use a custom package manifest
+
+Examples:
+  ./update.sh
+  ./update.sh --dry-run
+  ./update.sh --yes --verbose
 EOF
 }
 
@@ -33,9 +40,9 @@ fi
 
 init_runtime "update"
 
-run_step "preflight" "Detect platform and validate prerequisites" preflight_detect_and_validate
+run_step "preflight" "Preflight checks" preflight_detect_and_validate
 run_step "manifest" "Validate package manifest" manifest_validate
-run_step "update-plan" "Build update execution plan from manifest" update_build_plan
-run_step "update-exec" "Execute update plan" update_execute_plan
-run_step "state" "Persist runtime metadata" write_runtime_state
-run_step "summary" "Print final update summary" update_print_summary
+run_step "update-plan" "Review update plan" update_build_plan
+run_step "update-exec" "Review package actions" update_execute_plan
+run_step "state" "Save runtime state" write_runtime_state
+run_step "summary" "Show update summary" update_print_summary

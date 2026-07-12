@@ -14,13 +14,20 @@ usage() {
   cat <<'EOF'
 Usage: ./install.sh [options]
 
+Review the system, check package versions, and prepare the installation flow.
+
 Options:
-  --help             Show this help message
-  --dry-run          Show what would happen without changing the system
-  --verbose          Print additional context for each step
-  --yes              Non-interactive mode (auto-confirm prompts)
-  --step-by-step     Pause before each step and wait for key press
-  --manifest <path>  Use a custom manifest path (default: install/packages.json)
+  --help             Show help and exit
+  --dry-run          Preview changes without modifying the system
+  --verbose          Show additional diagnostic output
+  --yes              Run non-interactively and accept prompts
+  --step-by-step     Pause before each step
+  --manifest <path>  Use a custom package manifest
+
+Examples:
+  ./install.sh
+  ./install.sh --dry-run
+  ./install.sh --yes --verbose
 EOF
 }
 
@@ -33,9 +40,9 @@ fi
 
 init_runtime "install"
 
-run_step "preflight" "Detect platform and validate prerequisites" preflight_detect_and_validate
+run_step "preflight" "Preflight checks" preflight_detect_and_validate
 run_step "manifest" "Validate package manifest" manifest_validate
-run_step "install-plan" "Build install execution plan from manifest" install_build_plan
-run_step "install-exec" "Execute install plan" install_execute_plan
-run_step "state" "Persist runtime metadata" write_runtime_state
-run_step "summary" "Print final install summary" install_print_summary
+run_step "install-plan" "Review installation plan" install_build_plan
+run_step "install-exec" "Review package actions" install_execute_plan
+run_step "state" "Save runtime state" write_runtime_state
+run_step "summary" "Show installation summary" install_print_summary

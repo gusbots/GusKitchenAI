@@ -4,6 +4,7 @@ INSTALL_PLAN=()
 
 install_build_plan() {
   INSTALL_PLAN=()
+  reset_summary_counters
 
   local entry
   while IFS= read -r entry; do
@@ -12,9 +13,9 @@ install_build_plan() {
   done < <(manifest_emit_enabled_packages)
 
   if [[ "${#INSTALL_PLAN[@]}" -eq 0 ]]; then
-    log_warn "No enabled packages found in manifest."
+    log_warn "No enabled packages were found in the manifest."
   else
-    log_info "Install plan entries: ${#INSTALL_PLAN[@]}"
+    log_info "Found ${#INSTALL_PLAN[@]} enabled package(s) to review for installation."
   fi
 
   if [[ "$VERBOSE" == "true" ]]; then
@@ -30,7 +31,7 @@ install_execute_plan() {
   local item manager name version installed_version version_relation
 
   if [[ "${#INSTALL_PLAN[@]}" -eq 0 ]]; then
-    log_info "Nothing to install."
+    log_info "There are no packages to install."
     return 0
   fi
 
@@ -44,38 +45,45 @@ install_execute_plan() {
 
       case "$version_relation" in
         eq|gt)
-          log_info "$name already has version $installed_version, which meets the required version $version."
+          increment_summary_counter SUMMARY_SATISFIED
+          log_info "Package OK: $name $installed_version already meets the required version $version."
           continue
           ;;
         lt)
           if [[ "$DRY_RUN" == "true" ]]; then
+            increment_summary_counter SUMMARY_UPDATES
             if [[ "$AUTO_YES" == "true" ]]; then
-              log_info "[dry-run] Would update $name from version $installed_version to $version using $manager"
+              log_info "Dry run: would update $name from $installed_version to $version via $manager."
             else
-              log_info "[dry-run] Would ask whether to update $name from version $installed_version to $version using $manager"
+              log_info "Dry run: would ask before updating $name from $installed_version to $version via $manager."
             fi
             continue
           fi
 
-          if ! ask_yes_no "$name version $installed_version is older than required version $version. Update now?" "yes"; then
-            log_warn "Skipping update for $name."
+          if ! ask_yes_no "$name $installed_version is below the required version $version. Update now?" "yes"; then
+            increment_summary_counter SUMMARY_SKIPPED
+            log_warn "Skipped: $name update was declined."
             continue
           fi
+
+          increment_summary_counter SUMMARY_UPDATES
+          log_info "Update planned: $name from $installed_version to $version via $manager."
           ;;
       esac
     fi
 
     if [[ "$DRY_RUN" == "true" ]]; then
-      log_info "[dry-run] Would install $name version $version using $manager"
+      increment_summary_counter SUMMARY_INSTALLS
+      log_info "Dry run: would install $name $version via $manager."
       continue
     fi
 
+    increment_summary_counter SUMMARY_INSTALLS
     # Placeholder execution path: package-specific command adapters will be added later.
-    log_info "Install placeholder: $name version $version using $manager"
+    log_info "Install action placeholder: $name $version via $manager."
   done
 }
 
 install_print_summary() {
-  log_info "Install flow finished."
-  log_info "Mode summary: dry_run=$DRY_RUN verbose=$VERBOSE step_by_step=$STEP_BY_STEP auto_yes=$AUTO_YES"
+  print_action_summary "Installation review"
 }
